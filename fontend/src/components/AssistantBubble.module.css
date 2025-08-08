@@ -1,0 +1,89 @@
+/* src/components/AssistantBubble.module.css */
+
+/* ========== 方案一：使用 clamp()（推荐，简洁） ========== */
+.bubble {
+  /* 使用 clamp(min, preferred, max) 实现响应式宽度 */
+  /* clamp(最小值, 理想值, 最大值) */
+  /* max-width: clamp(280px, 85%, 2000px); */
+  /* 通用样式 */
+  padding: 12px 16px;
+  background-color: #f0f2f5;
+  border-radius: 12px;
+  border-bottom-left-radius: 4px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  word-wrap: break-word;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* box-sizing: border-box; */
+}
+
+
+
+/* 控制内部所有元素的间距 */
+.bubble p,
+.bubble ul,
+.bubble ol,
+.bubble blockquote,
+.bubble pre,
+.bubble table,
+.bubble h1,
+.bubble h2,
+.bubble h3 {
+  margin: 0.5em 0;
+}
+
+.bubble p:first-child,
+.bubble ul:first-child,
+.bubble ol:first-child,
+.bubble blockquote:first-child,
+.bubble pre:first-child {
+  margin-top: 0;
+}
+
+.bubble p:last-child,
+.bubble ul:last-child,
+.bubble ol:last-child,
+.bubble blockquote:last-child,
+.bubble pre:last-child {
+  margin-bottom: 0;
+}
+
+/* 代码块 */
+.bubble pre {
+  background-color: #f5f5f5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+
+.bubble code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background-color: #f0f0f0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+/* 操作按钮区域 */
+.actions {
+  margin-top: 8px;
+  text-align: right;
+  font-size: 12px;
+}
+
+.actions button {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: #1677ff;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.actions button:hover {
+  background: #4096ff;
+}

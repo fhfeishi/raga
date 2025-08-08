@@ -1,0 +1,32 @@
+// tsconfig.json
+
+
+{
+    // 项目根：pga/tsconfig.json
+    "compilerOptions": {
+      "target": "ES2020",
+      "lib": ["DOM", "DOM.Iterable", "ES2022"],
+      "module": "ESNext",
+      "moduleResolution": "node",
+      /* 语法增强与兼容 */
+      "strict": true,                  // 严格模式；新手可先关掉再逐步开启
+      "esModuleInterop": true,         // 允许默认导入 CommonJS
+      "skipLibCheck": true,            // 跳过依赖库的 .d.ts 检查，加快编译
+      "forceConsistentCasingInFileNames": true,
+  
+      /* React */
+      "jsx": "react-jsx",              // React 17+ 新转译器
+      "types": ["vite-plugin-svgr/client", "node"], // 加载 vite-plugin-svgr 内置类型（含 *.svg 声明）
+  
+      /* 路径别名 —— ⼀定要和 vite.config.ts 的 resolve.alias 对齐 */
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["src/*"]
+      }
+    },
+  
+    /* 告诉 TS 要编译哪些文件 */
+    "include": ["src"],                // src/ 下所有 ts/tsx
+    "exclude": ["node_modules", "dist"]
+  }
+  
