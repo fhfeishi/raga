@@ -23,7 +23,7 @@ temp/
 .models/
 
 # 忽略所有.idea
-*/.idea/*
+**/.idea/*
 
 # 忽略所有的 .pt .pth .ckpt .pdparams 权重文件
 *.pt
