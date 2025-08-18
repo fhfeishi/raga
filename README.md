@@ -49,7 +49,15 @@ pga/                          # 项目根目录
 
 
 
+```bash 
+# cd ~/raga/fontend
+npm install --save-dev npm-run-all
+# conda activate rag
+run-p dev dev:backend
 
+# 清理vite缓存
+rm -r -fo node_modules/.vite
+```
 
 
 
