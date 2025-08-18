@@ -255,7 +255,7 @@ const Chat: React.FC = () => {
           placeholder="回车发送，Shift+Enter 换行"
           style={{ resize: 'none', overflow: 'hidden' }}
         />
-        <button onClick={handleSend} className={styles.sendBtn}disabled={isStreaming || !activeId}>
+        <button onClick={handleSend} className={styles.sendBtn} disabled={isStreaming || !activeId}>
         {isStreaming ? '生成中…' : '发送'}</button>
       </footer>
     </div>
