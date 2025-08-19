@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 
 
 chat_model_config = {
-        "type": "ollama",  # "huggingface" 或 "ollama"
+        "type": "huggingface",  # "huggingface" 或 "ollama"
         "huggingface_model": "Qwen/Qwen3-1.7B",
         "ollama_model": "qwen3:latest",
         "ollama_base_url": "http://localhost:11434",

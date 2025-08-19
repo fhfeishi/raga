@@ -16,7 +16,7 @@ class ChatFlowService:
         生成 token 流（用于 CLI 或内部调用）
         """
         for token in self.agent.stream_tokens(question, k=k):
-            yield token
+            yield str(token)
         yield "\n"
 
     def sse_stream(self, question: str, k: int = 2) -> Iterator[str]:
@@ -27,7 +27,7 @@ class ChatFlowService:
         """
         for token in self.agent.stream_tokens(question, k=k):
             yield f"data: {token}\n\n"
-        yield "data: [END]\n\n"
+        
         
         
 # 可在 chatflow_service.py 底部加：

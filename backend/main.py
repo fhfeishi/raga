@@ -59,4 +59,7 @@ async def serve_frontend(full_path: str):
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    try:
+        uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    except KeyboardInterrupt:
+        pass 
