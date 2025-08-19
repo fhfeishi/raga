@@ -2,13 +2,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Conversation, Message } from '@/types';
+import {v4 as uuidv4} from 'uuid';
 
 // 一个简单的模拟函数，用于根据用户的第一条消息生成会话标题
 // 在实际应用中，这里可以调用 AI API 来生成更精准的标题
 const generateTitle = (userMessage: string): string => {
   // 这里可以根据消息内容进行关键词提取或简单的规则匹配
   const lowerMsg = userMessage.toLowerCase();
-  
   if (lowerMsg.includes('灵巧手') || lowerMsg.includes('robot hand')) {
     return '关于灵巧手技术的讨论';
   } else if (lowerMsg.includes('专利') || lowerMsg.includes('patent')) {
@@ -21,6 +21,27 @@ const generateTitle = (userMessage: string): string => {
     // 默认返回消息的前10个字 + 省略号
     return userMessage.length > 10 ? userMessage.slice(0, 10) + '...' : userMessage;
   }
+};
+
+type ChatStore = {
+  conversations: Conversation[];
+  activeId: string | null;
+
+  addConversation: () => void;
+  setActive: (id: string) => void;
+
+  // 允许前端传入已有 id（例如流式占位气泡），若未传则在这里生成
+  addMessage: (conversationId: string, msg: Omit<Message, 'id'> & Partial<Pick<Message, 'id'>>) => void;
+
+  // 更新整个内容（一次性替换）
+  updateMessageContent: (conversationId: string, messageId: string, newContent: string) => void;
+
+  // 追加内容（流式追加，保证不可变更新）
+  appendToMessage: (conversationId: string, messageId: string, delta: string) => void;
+
+  // 会话标题相关
+  updateSessionTitle: (id: string, newTitle: string) => void;
+  autoGenerateTitle: (conversationId: string) => void;
 };
 
 export const useChatStore = create<{
@@ -40,7 +61,8 @@ export const useChatStore = create<{
 
       addConversation() {
         const conv: Conversation = {
-          id: crypto.randomUUID(),
+          // id: crypto.randomUUID(),
+          id: uuidv4(),
           title: '新会话',
           messages: [],
           ts: Date.now(),
@@ -61,7 +83,7 @@ export const useChatStore = create<{
           if (!conv) return s;
 
           // 将新消息加入会话
-          const newMessage = { ...msg, id: crypto.randomUUID(), ts: msg.ts ?? Date.now(), };
+          const newMessage = { ...msg, id: (msg as any).id ?? uuidv4(), ts: msg.ts ?? Date.now(), };
           conv.messages.push(newMessage);
 
           // 检查是否是用户的第一条消息，如果是，则尝试自动生成标题

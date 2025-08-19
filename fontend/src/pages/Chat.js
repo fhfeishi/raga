@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import AssistantBubble from '@/components/AssistantBubble';
 import { useChatStore } from '@/stores/chatStore';
 import styles from '@/pages/Chat.module.css';
+import { v4 as uuidv4 } from 'uuid';
 const API_ROOT = '/api/chat/stream'; // fastapi后端暴露的路由
 const Chat = () => {
     const { addMessage, activeId, conversations, } = useChatStore();
@@ -132,7 +133,8 @@ const Chat = () => {
         setIsStreaming(true);
         // 创建一个临时的 assistant 消息，用于追加内容
         const assistantMsg = {
-            id: crypto.randomUUID(),
+            // id: crypto.randomUUID(),
+            id: uuidv4(),
             role: 'assistant',
             content: '',
             ts: Date.now(),

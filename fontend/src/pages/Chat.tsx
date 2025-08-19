@@ -4,6 +4,7 @@ import AssistantBubble from '@/components/AssistantBubble';
 import { useChatStore } from '@/stores/chatStore';
 import styles from '@/pages/Chat.module.css';
 import { Message } from '@/types'
+import {v4 as uuidv4} from 'uuid';
 
 const API_ROOT = '/api/chat/stream'  // fastapi后端暴露的路由
 
@@ -148,7 +149,8 @@ const Chat: React.FC = () => {
 
     // 创建一个临时的 assistant 消息，用于追加内容
     const assistantMsg: Message = {
-      id: crypto.randomUUID(),
+      // id: crypto.randomUUID(),
+      id: uuidv4(),
       role: 'assistant',
       content: '',
       ts: Date.now(),

@@ -1,6 +1,7 @@
 // src/stores/chatStore.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { v4 as uuidv4 } from 'uuid';
 // 一个简单的模拟函数，用于根据用户的第一条消息生成会话标题
 // 在实际应用中，这里可以调用 AI API 来生成更精准的标题
 const generateTitle = (userMessage) => {
@@ -28,7 +29,8 @@ export const useChatStore = create()(persist((set, get) => ({
     activeId: null,
     addConversation() {
         const conv = {
-            id: crypto.randomUUID(),
+            // id: crypto.randomUUID(),
+            id: uuidv4(),
             title: '新会话',
             messages: [],
             ts: Date.now(),
@@ -47,7 +49,7 @@ export const useChatStore = create()(persist((set, get) => ({
             if (!conv)
                 return s;
             // 将新消息加入会话
-            const newMessage = { ...msg, id: crypto.randomUUID(), ts: msg.ts ?? Date.now(), };
+            const newMessage = { ...msg, id: msg.id ?? uuidv4(), ts: msg.ts ?? Date.now(), };
             conv.messages.push(newMessage);
             // 检查是否是用户的第一条消息，如果是，则尝试自动生成标题
             const userMessages = conv.messages.filter(m => m.role === 'user');
