@@ -128,7 +128,7 @@ export const useChatStore = create<{
           return state; // 如果没有用户消息，则不更新
         });
       },
-      // ✅ 新增：更新指定消息的内容（用于流式响应）
+      // 新增：更新指定消息的内容（用于流式响应）
       updateMessageContent(conversationId, messageId, newContent) {
         set((state) => ({
           conversations: state.conversations.map((conv) =>
