@@ -6,7 +6,7 @@ import styles from '@/pages/Chat.module.css';
 import { Message } from '@/types'
 import {v4 as uuidv4} from 'uuid';
 
-const API_ROOT = '/api/chat/stream'  // fastapi后端暴露的路由
+const fastapi_router_chat = '/api/chat/stream'  // fastapi后端暴露的路由
 
 
 const Chat: React.FC = () => {
@@ -21,8 +21,8 @@ const Chat: React.FC = () => {
 
   const [input, setInput] = React.useState('');
   const [isStreaming, setIsStreaming] = useState(false); // 控制发送状态
-  const textareaRef = useRef<HTMLTextAreaElement | null > (null);
-  const chatMainRef = useRef<HTMLDivElement | null > (null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const chatMainRef = useRef<HTMLDivElement | null>(null);
 
   // 自动调整 textarea 高度
   useEffect(() => {
@@ -43,8 +43,8 @@ const Chat: React.FC = () => {
 
 
   // 工具 把一个完整的 SSE 事件块解析出 data payload（可能多行 data:）
-  const parseSSEEvent = (rawEvent: string): string | null =>{
-  // 一个事件块可能多行：id: xxx\n event: message\n data: ...\n data: ...\n\n
+  const parseSSEEvent = (rawEvent: string): string | null => {
+    // 一个事件块可能多行：id: xxx\n event: message\n data: ...\n data: ...\n\n
     // 这里把所有 data: 行拼起来（按 \n 连接）
     const lines = rawEvent.split(/\r?\n/);
     const datas: string[] = [];
@@ -75,9 +75,9 @@ const Chat: React.FC = () => {
     let buffer = '';
 
     while (true) {
-      const { done, value } = await reader.read();
+      const {done, value} = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, {stream: true});
 
       // 以空行分割事件
       const events = buffer.split(/\r?\n\r?\n/);
@@ -113,7 +113,7 @@ const Chat: React.FC = () => {
   // —— 首选：EventSource（浏览器内置 SSE 客户端）
   const streamByEventSource = (url: string, onChunk: (text: string) => void) => {
     return new Promise<void>((resolve, reject) => {
-      const es = new EventSource(url, { withCredentials: false });
+      const es = new EventSource(url, {withCredentials: false});
 
       es.onmessage = (evt) => {
         const payload = (evt.data ?? '').trim();
@@ -142,9 +142,9 @@ const Chat: React.FC = () => {
 
   // 流式接收 LLM 响应
   const streamLLMResponse = async (question: string) => {
-    
-    if(!activeId) return;
-    
+
+    if (!activeId) return;
+
     setIsStreaming(true);
 
     // 创建一个临时的 assistant 消息，用于追加内容
@@ -164,7 +164,7 @@ const Chat: React.FC = () => {
     };
 
     // 统一 URL（带上 conversation_id & question）
-    const url = `${API_ROOT}?conversation_id=${encodeURIComponent(activeId)}&question=${encodeURIComponent(question)}`;
+    const url = `${fastapi_router_chat}?conversation_id=${encodeURIComponent(activeId)}&question=${encodeURIComponent(question)}`;
 
     try {
       // 先尝试 EventSource（简单、可靠）
@@ -189,15 +189,15 @@ const Chat: React.FC = () => {
           }
           append(text);
         });
-    } catch (err: any){
-      const msg = err instanceof Error ? err.message : String(err);
-      useChatStore.getState().updateMessageContent(
-        activeId,
-        assistantMsg.id,
-        `❌ 服务错误: ${msg}`
-      );
-    }
-    }finally{
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        useChatStore.getState().updateMessageContent(
+            activeId,
+            assistantMsg.id,
+            `❌ 服务错误: ${msg}`
+        );
+      }
+    } finally {
       setIsStreaming(false);
     }
   };
@@ -206,8 +206,8 @@ const Chat: React.FC = () => {
   const handleSend = () => {
     if (!input.trim() || isStreaming || !activeId) return;
     // 把用户消息加到当前会话
-    addMessage(activeId, {role: 'user',  content: input , ts: Date.now() });
-    
+    addMessage(activeId, {role: 'user', content: input, ts: Date.now()});
+
     const q = input;
     setInput('');
 
@@ -224,43 +224,43 @@ const Chat: React.FC = () => {
   };
 
   return (
-    <div className={styles.chatContainer}>
-      {/* 对话列表 */}
-      <main className={styles.chatMain} ref={chatMainRef}>
-        {messages.length === 0 ? (
-          <div className={styles.emptyState}>开始你的第一段对话吧！</div>
-        ): (
-          messages.map(msg => (
-            <div
-              key={msg.id}
-              className={`${styles.messageBubble} ${
-                msg.role === 'user' ? styles.userBubble : styles.assistantBubble
-              }`}
-            >
-              {msg.role === 'assistant' ? (
-                <AssistantBubble content={msg.content} />
-              ) : (
-                msg.content
-              )}
-            </div>
-          ))
-        )}
-      </main>
+      <div className={styles.chatContainer}>
+        {/* 对话列表 */}
+        <main className={styles.chatMain} ref={chatMainRef}>
+          {messages.length === 0 ? (
+              <div className={styles.emptyState}>开始你的第一段对话吧！</div>
+          ) : (
+              messages.map(msg => (
+                  <div
+                      key={msg.id}
+                      className={`${styles.messageBubble} ${
+                          msg.role === 'user' ? styles.userBubble : styles.assistantBubble
+                      }`}
+                  >
+                    {msg.role === 'assistant' ? (
+                        <AssistantBubble content={msg.content}/>
+                    ) : (
+                        msg.content
+                    )}
+                  </div>
+              ))
+          )}
+        </main>
 
-      {/* 输入区域 */}
-      <footer className={styles.chatFooter}>
+        {/* 输入区域 */}
+        <footer className={styles.chatFooter}>
         <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="回车发送，Shift+Enter 换行"
-          style={{ resize: 'none', overflow: 'hidden' }}
+            ref={textareaRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="回车发送，Shift+Enter 换行"
+            style={{resize: 'none', overflow: 'hidden'}}
         />
-        <button onClick={handleSend} className={styles.sendBtn} disabled={isStreaming || !activeId}>
-        {isStreaming ? '生成中…' : '发送'}</button>
-      </footer>
-    </div>
+          <button onClick={handleSend} className={styles.sendBtn} disabled={isStreaming || !activeId}>
+            {isStreaming ? '生成中…' : '发送'}</button>
+        </footer>
+      </div>
   );
 };
 
