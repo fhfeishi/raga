@@ -5,11 +5,10 @@ from langchain_huggingface import ChatHuggingFace
 from langchain_ollama import ChatOllama
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from langchain_huggingface import HuggingFacePipeline
-
+from injector import singleton 
 
 import logging 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 
 chat_model_config = {
@@ -18,11 +17,12 @@ chat_model_config = {
         "ollama_model": "qwen3:latest",
         "ollama_base_url": "http://localhost:11434",
         "temperature": 0.2,
-        "max_new_tokens": 256,
+        "max_new_tokens": 512,
         "context_window": 1000,
     
 }
 
+@singleton
 def chat_model_cratefn(llm_cfg=chat_model_config, load_mode='auto') -> BaseChatModel:
     """ load_mode: aoto.  aoto-load from c/usr/.cache """
     if llm_cfg["type"] == "huggingface":

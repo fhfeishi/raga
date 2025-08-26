@@ -2,10 +2,10 @@
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaEmbeddings
+from injector import singleton
 
 import logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 
 enbedding_model_config = {
@@ -16,6 +16,7 @@ enbedding_model_config = {
     "device": "cuda" if __import__("os").environ.get("CUDA_VISIBLE_DEVICES") else "cpu", 
 }
 
+@singleton
 def enbedding_model_cratefn(emb_cfg=enbedding_model_config):
     if emb_cfg["type"] == "huggingface":
         logger.info(f"🔧 使用 HuggingFace 嵌入模型: {emb_cfg['huggingface_model']}")
