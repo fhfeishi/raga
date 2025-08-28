@@ -7,7 +7,7 @@ import svgr from 'vite-plugin-svgr';
 
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     svgr({ include: '**/*.svg?react' })
   ],
   resolve: {
@@ -16,11 +16,12 @@ export default defineConfig({
     },
   },
   server: {
-  proxy:{
-    '/api': {
-      target: 'http://localhost:8001',
-      changeOrigin: true,
-    }
-  }
+  // proxy:{
+  //   '/api': {
+  //     target: 'http://localhost:8001',
+  //     changeOrigin: true,
+  //   }
+  // }
+  proxy: undefined,
   },
 });

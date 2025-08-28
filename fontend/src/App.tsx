@@ -1,9 +1,10 @@
 // src/App.tsx
+
 import React, { useState, useEffect } from 'react';
 import SideBar from '@/components/SideBar';
 import Chat from '@/pages/Chat';      // 聊天内容组件
 import { useChatStore } from '@/stores/chatStore';  // 会话状态管理（Zustand）
-import { useUiStore } from '@/stores/uiStore';   // UI 状态管理（如侧边栏展开/收起）
+import { useUiStore } from '@/stores/uiStore';      // UI 状态管理（如侧边栏展开/收起）
 import NewChat from '@/assets/icons/new_chat.svg?react';
 import SideButton from '@/assets/icons/side.svg?react';
 import SessionTitleEditor from '@/components/SessionTitleEditor'; // 修改会话标签
