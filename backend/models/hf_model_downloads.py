@@ -14,7 +14,7 @@ class HFModelsDownloader_Cache:
         特点、可能会中断
         
         - 可以试试 huggingface-cli  
-        $ pip install -U "huggingface_hub[cli]"
+        $ pip install -U "huggingface_hub[cli]"  or pip install -U huggingface_hub
         # 1-a. 设置镜像源（Linux/macOS）  # Linux:~/.bashrc ~/.nahs_profile  # macOS: ~/.zshrc
         export HF_ENDPOINT=https://hf-mirror.com
         export HF_ENDPOINT=https://mirrors.tuna.tsinghua.edu.cn/hugging-face/
