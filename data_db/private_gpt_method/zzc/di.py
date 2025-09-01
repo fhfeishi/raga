@@ -17,18 +17,16 @@ from typing import Any
 class EmbeddingComponent:
     def __init__(self) -> None:
         cfg = settings().hf
-        model_kwargs: dict[str, Any] = {}
-        if cfg.cache_dir:
-            model_kwargs["cache_folder"] = cfg.cache_dir
+
         # llama-index 的 HF 封装内部会调用 transformers / sentence-transformers
         self.embedding_model = HuggingFaceEmbedding(
             model_name=cfg.model_name_or_path,
             device=cfg.device,
             trust_remote_code=cfg.trust_remote_code,
+            cache_folder=cfg.cache_dir,
             # ↓ 传给 sentence-transformers/transformers 的参数
             model_kwargs={
                 "local_files_only": cfg.local_files_only,
-                "cache_dir": cfg.cache_dir,
             },
             # encode_kwargs 可根据模型需要扩展
         )

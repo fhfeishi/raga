@@ -14,7 +14,7 @@ class HFSettings:
     device: str = os.getenv("PGM_DEVICE", "cpu")
     local_files_only: bool = _bool(os.getenv("PGM_LOCAL_FILES_ONLY", "1"), True)
     trust_remote_code: bool = _bool(os.getenv("PGM_TRUST_REMOTE_CODE", "1"), True)
-    cache_dir: str | None = os.getenv("PGM_HF_CACHE") or os.getenv("HF_HOME") or os.getenv("HUGGINGFACE_HUB_CACHE")
+    cache_dir: str | None =  os.getenv("HF_HOME") 
 
 @dataclass
 class IngestSettings:
