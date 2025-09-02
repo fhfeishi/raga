@@ -567,7 +567,7 @@ class patentMD_parser:
     # ============== 写文件 ==============
     def _write_structured_md(self, content: str) -> Path:
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        in_name = Path(self.markdown_file).stem
+        in_name = Path(self.pdfp).stem
         out_path = self.out_dir / f"{in_name}_z.md"
         out_path.write_text(content, encoding="utf-8")
         return out_path
