@@ -3,15 +3,31 @@ from collections import OrderedDict
 import os, re
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Union
+import pdfplumber
 
 
 
-
-
+"""   
+路径：专利文件路径：
+    docs_patents/
+        + xxxxx/   # 某一个专利的子文件夹
+            + images/       # 专利markdown中的图片
+            + full.md       # 专利markdown文件
+            + *_origin.pdf  # 原始专利pdf文件
+            + *.json  # 目前用不上的文件
+        + xxxxx/   # 某一个专利的子文件夹
+            + images/       # 专利markdown中的图片
+            + full.md       # 专利markdown文件
+            + *_origin.pdf  # 原始专利pdf文件
+            + *.json  # 目前用不上的文件
+        + ...
+"""
 
 class patentMD_parser:
     """
-    读取专利 Markdown（同目录有 images/），清理图片引用，抽取元数据，输出：
+    读取专利，
+    
+    清理图片引用，抽取元数据，输出：
       1) MetaDict（OrderedDict，字段按给定骨架）
       2) 结构化纯文本 Markdown（<原名>_z.md）到指定目录
 
@@ -30,21 +46,27 @@ class patentMD_parser:
         self.base_dir: Path = Path(self.markdown_file).parent
         self.images_dir: Path = self.base_dir / "images"
         self.out_dir: Path = Path(out_dir) if out_dir is not None else self.base_dir
-
+        self.pdfp = next(Path(self.markdown_file).parent.glob("*_origin.pdf"),None)
+        assert Path(self.pdfp).is_file()
         self.text: str = ""  # 原始 md 文本
 
         self.meta_schema = OrderedDict({
-            "pubno": "",           # 授权/公告号，如 CN20xxxx
-            "pub_date": "",        # 公布日
-            "title": "",           # 专利标题（(54) 实用新型/发明 名称）
-            "applier": "",         # 专利权人（只保留公司名）
-            "address": "",         # "邮编 地址"
-            "inventor": "",        # 发明人
+            "publ_no":"",          # (10) 申请公布号 or 授权公告号   <公开号>
+            "publ_date":"",        # (43) 申请公布日 or (45) 授权公告日
+            "is_granted": False,    # 是否授权，授权的话才会有专利号
+            "patent_no":"",        # 专利号（由申请号生成）          <专利号> if is_granted is Ture
+            "apply_no": '',        # (21) 申请号(不重要)            <申请号>
             "apply_time": "",      # (22) 申请日
-            "root_dir": "",        # 专利目录（绝对路径）
-            "pdf_path": "",        # 原始 PDF 的绝对路径（尽力猜测）
-            "fig_list": {},        # {"abs_im": ["摘要图", abs_path], "图1": ["描述", abs_path], ...}
+            "title": "",           # (54) 专利标题（实用新型/发明 名称）
+            "applicant": "",      # (54) 专利权人 申请人
+            "address": "",         # "邮编 地址"
+            "inventors": "",       # (71) 发明人
+            "doc_type": "",        # <(12) 文献类型，如“实用新型专利/发明专利申请/外观设计专利”>  # 外观设计专利只有图可以展示
             "tech_field": "",      # # 技术领域 的正文（不含标题）
+            
+            "root_dir": "",        # 专利目录（绝对路径）
+            "pdf_path": "",        # 原始 PDF 的绝对路径
+            "fig_list": {},        # {"abs_im": ["摘要图", abs_path], "图1": ["描述", abs_path], ...}
         })
 
 
@@ -73,8 +95,8 @@ class patentMD_parser:
         if tech_field_txt:
             meta_blocks["tech_field"] = tech_field_txt
 
-        # 5) PDF 公告号
-        pubno_info = self._extract_pubno()  # {"pubno": "...", "pdf_path": "..."}
+        # 5) PDF 公告号 
+        pubno_info = self._extract_pubno() # {"pubno": "...", "pdf_path": "..."}
 
         # 6) 汇总 MetaDict
         self.meta_schema["root_dir"] = str(self.base_dir.resolve())
@@ -82,13 +104,19 @@ class patentMD_parser:
         self.meta_schema.update(meta_blocks)
         self.meta_schema.update(pubno_info)
 
+        # 6-2) MetaDict_norm
+        self.MetaDict_norm()
+
+
         # 7) 组织结构化 Markdown（从 (54) 起，拼装常见章节）
         structured_md = self._build_structured_markdown(text_wo_imgs, self.meta_schema)
 
-        # 8) 落盘
-        out_path = self._write_structured_md(structured_md)
+        # # 8) 落盘, out_dir不是None的话
+        if self.out_dir is not None:
+            out_path = self._write_structured_md(structured_md)
+            return self.meta_schema, out_path
 
-        return self.meta_schema, out_path
+        return self.meta_schema
 
     # ============== 基础工具 ==============
     def _load_md_text(self) -> str:
@@ -243,7 +271,7 @@ class patentMD_parser:
         ).rstrip() + "\n"
         return new_text
     
-    # ============== 元数据抽取（从『全文』提取） ==============
+    # ============== 时间格式 ==============
     def _normalize_date(self, s: str) -> str:
         s = (s or "").strip()
         if not s:
@@ -255,35 +283,94 @@ class patentMD_parser:
 
     # ============== 元数据抽取（从『全文』提取，避免被裁剪掉） ==============
     def _extract_meta_blocks(self, full_text: str) -> Dict[str, str]:
+        
+        # (12) 文献类型
+        m12 = re.search(r'\(12\)\s*([^\n]+)', full_text)
+        if m12:
+            doc_type = re.sub(r"\s+", "", m12.group(1))
+            
+        
         # (54) 标题：下一行是 title
         m_title = re.search(r'(?m)^#\s*\(54\)\s*(?:实用新型|发明)\s*名称\s*\n(.+)$', full_text)
         title = (m_title.group(1).strip() if m_title else "")
+
+        # (21) 申请号
+        m_apply_no = re.search(r'\(21\)\s*申请号\s*([0-9]+(?:\.[0-9A-Za-z])?)', full_text)
+        apply_no = (m_apply_no.group(1).strip() if m_apply_no else "")
 
         # (22) 申请日：形如 2020.09.02 或 2020-09-02 或 2020年09月02日
         m_apply = re.search(r'\(22\)\s*申请日\s*([0-9.\-年月日/]+)', full_text)
         apply_time = (m_apply.group(1).strip() if m_apply else "")
         apply_time = apply_time.replace("年",".").replace("月",".").replace("日","").strip(".")
 
-        # (73) 专利权人 + 地址（可能连写：地址<邮编><地址>）
-        # 例： (73)专利权人杭州宇树科技有限公司地址310053浙江省杭州市...
-        m_73 = re.search(r'\(73\)\s*专利权人\s*([^\n]*?)地址\s*([0-9]{6})?([^\n]*)', full_text)
-        applier, address = "", ""
-        if m_73:
-            applier = m_73.group(1).strip()
-            zip_code = (m_73.group(2) or "").strip()
-            addr_rest = (m_73.group(3) or "").strip()
-            # address 规范为 "邮编 地址"
-            if zip_code and addr_rest:
-                address = f"{zip_code} {addr_rest}"
-            else:
-                # 退化：如果没分出邮编，就把“地址”后的内容全放进去
-                m_73b = re.search(r'\(73\)\s*专利权人[^\n]*?地址\s*([^\n]+)', full_text)
-                if m_73b:
-                    address = m_73b.group(1).strip()
+        # (73) 专利权人  or (71)申请人   +   地址（可能连写：地址<邮编><地址>）   gg  
+        applicant, address = "", ""
+        # 统一从 (73)/(71) 段落中抽取，允许跨行直到下一个 (XX) 字段或文末
+        block_pat = re.compile(
+                r'\((?P<code>71|73)\)'                    # (71) 或 (73)
+                r'\s*(?:申\s*请\s*人|专\s*利\s*权\s*人)?'  # 可选“申请人/专利权人”字样
+                r'\s*[:：]?\s*'
+                r'(?P<name>.*?)'                          # 申请人/专利权人（非贪婪）
+                r'(?:地址|住\s*址)\s*[:：]?\s*'            # 地址提示词
+                r'(?:(?P<zip>\d{6})\s*[，,、]?\s*)?'      # 可选 6 位邮编
+                r'(?P<addr>[^\(\)\r\n]+)',                # 地址主体
+                flags=re.S | re.I
+            )
+        m = block_pat.search(full_text)
+        if m:
+            applicant = m.group('name').strip()
+            zip_code = m.group('zip') or ''
+            addr = m.group('addr').strip()
+            address = f"{zip_code} {addr}".strip()
+        
+        # # 2. 兜底：单行抓“申请人/专利权人”
+        # for tag in ('(71)', '(73)'):
+        #     m_name = re.search(rf'{re.escape(tag)}\s*(?:申\s*请\s*人|专\s*利\s*权\s*人)?\s*[:：]?\s*([^\r\n]+)', full_text, re.I)
+        #     if m_name:
+        #         applicant = m_name.group(1).strip()
+        #         break
+        
+        # # 3. 兜底：单行抓“地址”
+        # m_addr = re.search(r'(?:地址|住\s*址)\s*[:：]?\s*(\d{6})?[，,、]?\s*([^\r\n]+)', full_text, re.I)
+        # if m_addr:
+        #     zip_code = m_addr.group(1) or ''
+        #     addr = m_addr.group(2).strip()
+        #     address = f"{zip_code} {addr}".strip()
+              
 
-        # (72) 发明人
-        m_72 = re.search(r'\(72\)\s*发明人\s*([^\n]+)', full_text)
-        inventor = (m_72.group(1).strip() if m_72 else "")
+        # (72) 发明人 or 设计人 → 多个人名，返回 ['xx', 'xx', ...]   --gg  解析还是有点问题
+        inventors_list = []
+        m_72 = re.search(
+            # 抓住 (72) 行后直到“下一字段头（形如 \n(XX)）”或文末为止
+            r'(?ms)^\(72\)\s*(?:发明人|设计人)\s*(.+?)(?=\n\(\d{2}\)|\Z)',
+            full_text
+        )
+        if m_72:
+            raw_inv = m_72.group(1)
+
+            # 统一空白（包含全角空格/换行等）为单空格
+            raw_inv = re.sub(r'\s+', ' ', raw_inv).strip()
+
+            # 先把常见分隔符与连接词统一成 "、"
+            # 顿号/逗号/分号/斜杠 以及 “和/与/及” 两侧可能有空格
+            normalized = re.sub(r'\s*(?:、|，|,|；|;|／|/|和|与|及)\s*', '、', raw_inv)
+
+            # 关键：中文名之间仅以空格分隔的情况，也将这个空格视为一个分隔符
+            normalized = re.sub(r'(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])', '、', normalized)
+
+            # 分割并清洗
+            parts = [p.strip() for p in normalized.split('、') if p.strip()]
+
+            seen = set()
+            for p in parts:
+                # 去掉尾缀“等/等人/等等人”等
+                p = re.sub(r'(?:等(?:等)?(?:人)?)$', '', p)
+                if p and p not in seen:
+                    inventors_list.append(p)
+                    seen.add(p)
+
+        # 结果：列表形式
+        inventors = inventors_list
 
         #  (43)/(45)/关键词“公开/公告/公布/授权公告(日|日期)” —— 取最先匹配到的
         pub_date = ""
@@ -296,15 +383,59 @@ class patentMD_parser:
             if m:
                 pub_date = self._normalize_date(m.group(1))
                 break
+        
+
+
 
         return {
             "title": title,
+            "apply_no":apply_no,
             "apply_time": apply_time,
-            "applier": applier,
+            "applicant": applicant,
             "address": address,
-            "inventor": inventor,
-            "pub_date": pub_date,   
+            "inventors": inventors,
+            "publ_date": pub_date,  
+            "doc_type":doc_type, 
         }
+
+    def _extract_pub_date_from_pdf(self) -> str:
+        """  
+        1) 优先匹配 (45)授权公告日 / 公开|公告|公布(日|日期)
+        2)从 PDF 首页兜底提取 pub_date：
+
+        
+        
+        
+        """
+        
+    def _extract_pubno_from_pdf(self) -> str:
+        pass 
+        
+    
+    # <公布号/公告号>  ->  授权 专利号
+    def MetaDict_norm(self) -> None:
+        publ_no = self.meta_schema.get("publ_no", None)
+        if not publ_no: 
+            # 打印版的PDF文件，没法
+            # 既然不知道 <公布号/公告号>， 也无法得到 patent_no
+            del self.meta_schema['patent_no']
+            return 
+        
+        appl_no = self.meta_schema.get("apply_no", None)
+        if not appl_no: 
+            return 
+        pub_kind = publ_no.strip()[-1]  # 取<公开号>最后一位
+        # A  发明专利申请，未授权， 无专利号
+        # U/C/S 实用新型/发明/外观设计授权, 授权， 有专利号
+        if pub_kind in ['U', 'C', 'S']:
+            patent_no = f"ZL{appl_no}"  # 授权，专利号=ZL申请号
+            self.meta_schema['patent_no'] = patent_no
+            self.meta_schema['is_granted'] = True 
+        elif pub_kind == 'A':
+            del self.meta_schema['patent_no']
+        else:
+            del self.meta_schema['patent_no']
+        return 
 
     # 提取指定标题段的“纯正文”（不含标题本身）
     def _extract_section_plain_text(self, full_text: str, title_pattern: str, strip_para_tags: bool = False) -> str:
@@ -330,38 +461,28 @@ class patentMD_parser:
         提取顺序：
         1) (11) 行（公开号/公告号/授权公告号）
         2) 带“公告号/公开号/授权公告号”关键词的行
-        3) 全文兜底扫描 CN + 数字 + 可选结尾字母（且不跟小数点，避免把申请号 CN2020...*.5 误判）
-        4) 文件名 / 目录名兜底扫描
         """
         text = self.text
 
         # 1) (11) 行优先
         m_11 = re.search(r'\(11\)[^\n]*?(CN[0-9]{7,12}[A-Z0-9]?)', text, flags=re.IGNORECASE)
         if m_11:
-            return {"pubno": m_11.group(1).upper(), "pdf_path": self._guess_pdf_path() or ""}
+            return {"publ_no": m_11.group(1).upper(), "pdf_path": self._guess_pdf_path() or ""}
 
         # 2) 关键词行（公告号/公开号/授权公告号）
         m_kw = re.search(
-            r'(公告号|公开号|授权公告号)\s*[:：]?\s*(CN[0-9]{7,12}[A-Z0-9]?)',
+            r'(公告号|公布号|申请公布号|授权公告号)\s*[:：]?\s*(CN[0-9]{7,12}[A-Z0-9]?)',
             text, flags=re.IGNORECASE
         )
         if m_kw:
-            return {"pubno": m_kw.group(2).upper(), "pdf_path": self._guess_pdf_path() or ""}
-
-        # 3) 全文兜底扫描（避免匹配到带小数点的申请号：使用负向前瞻 (?!\.) ）
-        m_any = re.search(r'(CN[0-9]{7,12}[A-Z0-9]?)(?!\.)', text, flags=re.IGNORECASE)
-        if m_any:
-            return {"pubno": m_any.group(1).upper(), "pdf_path": self._guess_pdf_path() or ""}
-
-        # 4) 文件名/目录名兜底
-        candidates = [Path(self.markdown_file).name, self.base_dir.name]
-        for s in candidates:
-            m_fs = re.search(r'(CN[0-9]{7,12}[A-Z0-9]?)(?!\.)', s, flags=re.IGNORECASE)
-            if m_fs:
-                return {"pubno": m_fs.group(1).upper(), "pdf_path": self._guess_pdf_path() or ""}
+            return {"publ_no": m_kw.group(2).upper(), "pdf_path": self._guess_pdf_path() or ""}
 
         # 都没找到则置空
-        return {"pubno": "", "pdf_path": self._guess_pdf_path() or ""}
+        return {"publ_no": "", "pdf_path": self._guess_pdf_path() or ""}
+    
+    
+    
+    
     
     # ============== 结构化 Markdown 生成（从 (54) 起） ==============
     def _build_structured_markdown(self, clean_text_from_54: str, meta: Dict[str, Union[str, dict]]) -> str:
@@ -454,9 +575,24 @@ class patentMD_parser:
 
 
 if __name__ == '__main__':
-    markdown_file = r"./demo.md"
-    parser = patentMD_parser(markdown_file)
-    doc = parser()
-    print(parser.meta_schema)
+    # markdown_file = r"./demo.md"
+    # parser = patentMD_parser(markdown_file)
+    # doc = parser()
+    # print(parser.meta_schema)
+    
+    root_dir = r"D:\ddesktop\agentdemos\codespace\zhuanliParser\result"
+    od = r"D:\ddesktop\agentdemos\codespace\zhuanliParser\result_1"
+    sub_dirs = list(Path(root_dir).glob("*/full.md"))
+    print(len(sub_dirs))  # ok 
+    for md in sub_dirs:
+        mdp = Path(md)
+        pdfp = next(mdp.parent.glob("*_origin.pdf"),None)
+        assert pdfp is not None 
+        parsers = patentMD_parser(mdp, od)
+        doc = parsers()
+        print(parsers.meta_schema)
+    
+    
+    
     
 
