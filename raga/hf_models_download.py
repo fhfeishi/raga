@@ -239,6 +239,7 @@ class HFModelsDownloader_SnapShot:
     def __init__(self, cache_dir: Optional[StrPath] = None, token: Optional[str] = None, offline: bool = False) -> None:
         if cache_dir:
             HFModelsDownloader_Cache.set_cache_dir(cache_dir)
+        self.cache_dir = cache_dir
         self.token = token or os.getenv("HUGGINGFACE_TOKEN") or HfFolder.get_token()
         if self.token:
             try:
@@ -265,7 +266,8 @@ class HFModelsDownloader_SnapShot:
             repo_id=repo_id,
             repo_type=repo_type,
             revision=revision,
-            cache_dir=os.getenv("HUGGINGFACE_HUB_CACHE"),
+            # cache_dir=os.getenv("HUGGINGFACE_HUB_CACHE"),
+            cache_dir=self.cache_dir,
             local_dir=str(local_dir) if local_dir else None,
             local_dir_use_symlinks=local_dir_use_symlinks,
             allow_patterns=allow_patterns,
