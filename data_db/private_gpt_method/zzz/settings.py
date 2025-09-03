@@ -45,34 +45,48 @@ class LoggingCfg(BaseModel):
     json: bool = False
 
 
-# ============ 模型配置（本地优先） ============
+# ============ 模型配置（本地优先）  ============
+# ok-0903
 class ChatModelCfg(BaseModel):
-    provider: Literal["transformers", "ollama", "llama_cpp", "vllm", "openai_compatible"] = "transformers"
-    model: str = "E:\local_models\huggingface\cache\hub"
-    endpoint: Optional[str] = None  # vLLM/兼容OpenAI 时使用
-    device: str = "cuda"  # 或 "cpu"
-    context_window: int = 8192
-    temperature: float = 0.2
-    max_tokens: int = 1024
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    load_method   : Literal["hf_cache"]    = "hf_cache"  # 目前仅支持本地缓存加载
+    model_name    : str                    = "Qwen/Qwen3-1.7B"
+    context_window: int                    = 8192
+    max_tokens    : int                    = 400
+    system_prompt : Optional[str]          = None  # 可选的系统提示词
+    cache_folder  : str                    = "E:/local_models/huggingface/cache/hub"  # g
+    device        : Literal["cpu", "cuda"] = 'cpu'         # 先就cpu吧 
+    temperature   : float                  = 0.2
+    top_k         : int                    = 50      
+    top_p         : float                  = 0.7     
+    do_sample     : bool                   = True
+
+# ok -0903
+class embeddingCfg(BaseModel):
+    # embedding-model cfg
+    load_method   : Literal["hf_cache"]    = "hf_cache"     # 目前仅支持本地缓存加载
+    model_name    : str                    = "Qwen/Qwen3-Embedding-0.6B"
+    max_length    : Optional[int]          = 1024  
+    normalize     : bool                   = True
+    embed_batch_size: int                  = 16             
+    cache_folder  : str                    = "E:/local_models/huggingface/cache/hub"           
+    trust_remote_code: bool                = True           
+    local_files_only : bool                = False          
+    device        : Literal["cpu", "cuda"] = 'cpu'         # 先就cpu吧 
+    num_workers   : int                    = 4               # DataLoader 线程数，0表示不使用多线程
+    # embedding_ingest cfg
+    ingest_mode     : Literal["batch", "simple"] = "batch"  
+    count_workers   : int                        = 4
 
 
-class EmbeddingModelCfg(BaseModel):
-    provider: Literal["huggingface", "fastembed", "onnx"] = "huggingface"
-    model: str = "E:\local_models\huggingface\cache\hub"
-    normalize: bool = True
-    device: str = "cuda"
-    dim: Optional[int] = None  # 可留空由模型自推断
-    extra: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RerankerModelCfg(BaseModel):
-    provider: Literal["bge_reranker", "cross_encoder", "none"] = "bge_reranker"
-    model: str = "【示意】bge-reranker-v2-m3"
-    device: str = "cuda"
-    with_score: bool = True
-    top_n: int = 20
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    load_method   : Literal["hf_cache"]    = "hf_cache"  # 目前仅支持本地缓存加载
+    model_name    : str                    = "【示意】bge-reranker-v2-m3"
+    cache_folder  : str                    = "E:/local_models/huggingface/cache/hub" 
+    device        : str                    = "cuda"
+    with_score    : bool                   = True
+    top_n         : int                    = 20
 
 
 # ============ 文本分块 / 检索 ============
@@ -110,12 +124,13 @@ class VectorStoreCfg(BaseModel):
     qdrant: QdrantCfg = Field(default_factory=QdrantCfg)
 
 
+
 # ============ 汇总 App 配置 ============
 class AppSettings(BaseModel):
     paths: AppPaths = Field(default_factory=AppPaths)
     logging: LoggingCfg = Field(default_factory=LoggingCfg)
     chat_model: ChatModelCfg = Field(default_factory=ChatModelCfg)
-    embedding_model: EmbeddingModelCfg = Field(default_factory=EmbeddingModelCfg)
+    embedding: embeddingCfg = Field(default_factory=embeddingCfg)
     reranker_model: RerankerModelCfg = Field(default_factory=RerankerModelCfg)
     splitter: SplitterCfg = Field(default_factory=SplitterCfg)
     retrieval: RetrievalCfg = Field(default_factory=RetrievalCfg)
@@ -136,31 +151,26 @@ class AppSettings(BaseModel):
 
     # ---- 构建 embedding ----
     def build_embedding(self):
-        if self.embedding_model.provider == "huggingface":
+        embed_v  = self.embedding_model.load_method
+        # 默认就是fh默认缓存的路径
+        if  embed_v == "hf_cache": 
             EmbCls = self._import([
                 "llama_index.embeddings.huggingface.HuggingFaceEmbedding",
-                "llama_index.core.embeddings.huggingface.HuggingFaceEmbedding",
             ])
             return EmbCls(
-                model_name=self.embedding_model.model,
-                embed_batch_size=32,
+                model_name=self.embedding_model.model_name,
+                max_length=self.embedding_model.max_length,
                 normalize=self.embedding_model.normalize,
-                cache_folder=str(self.paths.cache_dir),
+                embed_batch_size=self.embedding_model.embed_batch_size,
+                cache_folder=self.embedding_model.cache_folder,
+                trust_remote_code=self.embedding_model.trust_remote_code,
+                model_kwargs={"local_files_only": self.embedding_model.local_files_only},
                 device=self.embedding_model.device,
-                **self.embedding_model.extra,
+                num_workers=self.embedding_model.num_workers,
             )
-        elif self.embedding_model.provider == "fastembed":
-            EmbCls = self._import([
-                "llama_index.embeddings.fastembed.FastEmbedEmbedding",
-                "llama_index.core.embeddings.fastembed.FastEmbedEmbedding",
-            ])
-            return EmbCls(
-                model_name=self.embedding_model.model,
-                normalize=self.embedding_model.normalize,
-                **self.embedding_model.extra,
-            )
+
         else:
-            raise NotImplementedError(f"Unknown embedding provider: {self.embedding_model.provider}")
+            raise NotImplementedError(f"Unknown embedding provider: {embed_v}")
 
     # ---- 构建 reranker（可选） ----
     def build_reranker(self):
@@ -207,53 +217,25 @@ class AppSettings(BaseModel):
 
     # ---- 构建 chat LLM ----
     def build_chat_llm(self):
-        prov = self.chat_model.provider
-        if prov == "transformers":
+        chat_v = self.chat_model.load_method
+        if chat_v == "hf_cache":
             LLMCls = self._import([
                 "llama_index.llms.huggingface.HuggingFaceLLM",
-                "llama_index.core.llms.huggingface.HuggingFaceLLM",
             ])
             return LLMCls(
-                model_name=self.chat_model.model,
-                tokenizer_name=self.chat_model.model,
+                model_name=self.chat_model.model_name,
+                tokenizer_name=self.chat_model.model_name,
                 context_window=self.chat_model.context_window,
                 max_new_tokens=self.chat_model.max_tokens,
-                device_map="auto" if self.chat_model.device == "cuda" else None,
-                generate_kwargs={"temperature": self.chat_model.temperature, **self.chat_model.extra},
-            )
-        elif prov == "ollama":
-            LLMCls = self._import([
-                "llama_index.llms.ollama.Ollama",
-                "llama_index.core.llms.ollama.Ollama",
-            ])
-            return LLMCls(model=self.chat_model.model, request_timeout=120.0, **self.chat_model.extra)
-        elif prov in {"vllm", "openai_compatible"}:
-            LLMCls = self._import([
-                "llama_index.llms.openai_like.OpenAILike",
-                "llama_index.core.llms.openai_like.OpenAILike",
-            ])
-            if not self.chat_model.endpoint:
-                raise ValueError("endpoint 必填：使用 vLLM / OpenAI 兼容服务时需要提供 endpoint")
-            return LLMCls(
-                model=self.chat_model.model,
-                api_base=self.chat_model.endpoint,
-                api_key=os.getenv("OPENAI_API_KEY", "EMPTY"),
-                is_chat_model=True,
-                **self.chat_model.extra,
-            )
-        elif prov == "llama_cpp":
-            LLMCls = self._import([
-                "llama_index.llms.llama_cpp.LlamaCPP",
-                "llama_index.core.llms.llama_cpp.LlamaCPP",
-            ])
-            return LLMCls(
-                model_path=self.chat_model.model,
-                context_window=self.chat_model.context_window,
-                temperature=self.chat_model.temperature,
-                **self.chat_model.extra,
+                system_prompt=self.chat_model.system_prompt,
+                generate_kwargs={"temperature": self.chat_model.temperature, 
+                                 "top_k": self.chat_model.top_k, 
+                                 "top_p": self.chat_model.top_p, 
+                                 "do_sample": True},
+                device_map=self.chat_model.device,
             )
         else:
-            raise NotImplementedError(f"Unknown chat provider: {prov}")
+            raise NotImplementedError(f"Unknown chat provider: {chat_v}")
 
     # ---- 构建 splitter ----
     def build_text_splitter(self):
@@ -342,12 +324,12 @@ class AppSettings(BaseModel):
 
 
 # 单例配置对象，可在任意模块导入
-settings = AppSettings()
+settings_ = AppSettings()
 
 
 if __name__ == "__main__":
-    objs = settings.configure_llama_index()
-    vs = settings.build_vector_store()
+    objs = settings_.configure_llama_index()
+    vs = settings_.build_vector_store()
     print("Settings OK →", {
         "llm": type(objs["llm"]).__name__,
         "embed": type(objs["embed_model"]).__name__,
