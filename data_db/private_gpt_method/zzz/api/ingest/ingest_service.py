@@ -7,14 +7,14 @@ from injector import inject, singleton
 from llama_index.core.node_parser import SentenceWindowNodeParser
 from llama_index.core.storage import StorageContext
 
-from private_gpt.components.embedding.embedding_component import EmbeddingComponent
+from components.embedding.embedding_component import EmbeddingComponent
 from components.ingest.ingest_component import get_ingestion_component
-from private_gpt.components.llm.llm_component import LLMComponent
-from private_gpt.components.node_store.node_store_component import NodeStoreComponent
-from private_gpt.components.vector_store.vector_store_component import (
+from components.languagelm.llm_component import LLMComponent
+from components.node_store.node_store_component import NodeStoreComponent
+from components.vector_store.vector_store_component import (
     VectorStoreComponent,
 )
-from server.ingest.model import IngestedDoc
+from api.ingest.ingest_model import IngestedDoc
 from settings import AppSettings  # 依赖注入之后 
 
 if TYPE_CHECKING:
