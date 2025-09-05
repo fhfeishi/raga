@@ -40,14 +40,38 @@ class AppPaths(BaseModel):
     #     return self
     
 
-class LoggingCfg(BaseModel):
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    json: bool = False
+
+# .todo 
+class LlamaCPPCfg(BaseModel):
+    llm_hf_repo_id: str = "Qwen/Qwen3-1.7B-GGUF"
+    llm_hf_model_file: str = r"E:/local_models/huggingface/cache/hub/.gguf"    # ++
+    tfs_z: float = Field(
+        1.0,
+        description="Tail free sampling is used to reduce the impact of less probable tokens from the output. A higher value (e.g., 2.0) will reduce the impact more, while a value of 1.0 disables this setting.",
+    )
+    top_k: int = Field(
+        40,
+        description="Reduces the probability of generating nonsense. A higher value (e.g. 100) will give more diverse answers, while a lower value (e.g. 10) will be more conservative. (Default: 40)",
+    )
+    top_p: float = Field(
+        0.9,
+        description="Works together with top-k. A higher value (e.g., 0.95) will lead to more diverse text, while a lower value (e.g., 0.5) will generate more focused and conservative text. (Default: 0.9)",
+    )
+    repeat_penalty: float = Field(
+        1.1,
+        description="Sets how strongly to penalize repetitions. A higher value (e.g., 1.5) will penalize repetitions more strongly, while a lower value (e.g., 0.9) will be more lenient. (Default: 1.1)",
+    )
+    
+
+
+# ====== huggingface 本地模型  缓存目录root =======
+class hf_cacheCfg(BaseModel):
+    hf_models_cache_root: str = "E:/local_models/huggingface/cache/hub" 
 
 
 # ============ 模型配置（本地优先）  ============
 # ok-0903
-class ChatModelCfg(BaseModel):
+class languagelmCfg(BaseModel):
     load_method   : Literal["hf_cache"]    = "hf_cache"  # 目前仅支持本地缓存加载
     model_name    : str                    = "Qwen/Qwen3-1.7B"
     context_window: int                    = 8192
@@ -56,9 +80,10 @@ class ChatModelCfg(BaseModel):
     cache_folder  : str                    = "E:/local_models/huggingface/cache/hub"  # g
     device        : Literal["cpu", "cuda"] = 'cpu'         # 先就cpu吧 
     temperature   : float                  = 0.2
-    top_k         : int                    = 50      
+    top_k         : int                    = 5      
     top_p         : float                  = 0.7     
     do_sample     : bool                   = True
+    trust_remote_code  : bool              = True
 
 # ok -0903
 class embeddingCfg(BaseModel):
@@ -74,19 +99,22 @@ class embeddingCfg(BaseModel):
     device        : Literal["cpu", "cuda"] = 'cpu'         # 先就cpu吧 
     num_workers   : int                    = 4               # DataLoader 线程数，0表示不使用多线程
     # embedding_ingest cfg
-    ingest_mode     : Literal["batch", "simple"] = "batch"  
+    ingest_mode     : Literal["simple", "batch", "parallel", "pipeline"] = "batch"  
     count_workers   : int                        = 4
 
 
-
-
-class RerankerModelCfg(BaseModel):
+# reranker在retrieve很稳的时候（能够找到很相关的信息）就没必要了
+# 一般先retrieve召回50~200条，然后reranker精排挑选top5~10，
+class rerankerCfg(BaseModel):  #  可选，某些情况下可能会有用
+    enabled       : bool                   = False       # 是否启用 reranker
     load_method   : Literal["hf_cache"]    = "hf_cache"  # 目前仅支持本地缓存加载
-    model_name    : str                    = "【示意】bge-reranker-v2-m3"
-    cache_folder  : str                    = "E:/local_models/huggingface/cache/hub" 
+    model_name    : str                    = "Qwen/Qwen3-Reranker-0.6B"
+    cache_folder  : str                    = "E:/local_models/huggingface/cache/hub"  # gg
     device        : str                    = "cuda"
-    with_score    : bool                   = True
-    top_n         : int                    = 20
+    with_rscore   : bool                   = True
+    top_n         : int                    = 20   
+    
+
 
 
 # ============ 文本分块 / 检索 ============
@@ -110,31 +138,40 @@ class ChromaCfg(BaseModel):
     collection: str = "private_gpt"
     persist_dir: Optional[Path] = None  # 默认使用 AppPaths.persist_dir / "chroma"
 
-
+# .todo
 class QdrantCfg(BaseModel):
     host: str = "127.0.0.1"
     port: int = 6333
     collection: str = "private_gpt"
     prefer_grpc: bool = False
 
+# .todo
+class FaissCfg(BaseModel):
+    pass 
 
 class VectorStoreCfg(BaseModel):
-    backend: Literal["chroma", "qdrant", "faiss"] = "chroma"
+    database: Literal["chroma", "qdrant", "faiss"] = "chroma"
     chroma: ChromaCfg = Field(default_factory=ChromaCfg)
     qdrant: QdrantCfg = Field(default_factory=QdrantCfg)
+
+
+# simple   (postgres/mysql 见后续版本)
+class node_storeCfg(BaseModel):
+    database: Literal["simple"] = "simple"
 
 
 
 # ============ 汇总 App 配置 ============
 class AppSettings(BaseModel):
     paths: AppPaths = Field(default_factory=AppPaths)
-    logging: LoggingCfg = Field(default_factory=LoggingCfg)
-    chat_model: ChatModelCfg = Field(default_factory=ChatModelCfg)
+    languagelm: languagelmCfg = Field(default_factory=languagelmCfg)
     embedding: embeddingCfg = Field(default_factory=embeddingCfg)
-    reranker_model: RerankerModelCfg = Field(default_factory=RerankerModelCfg)
+    reranker: rerankerCfg = Field(default_factory=rerankerCfg)
     splitter: SplitterCfg = Field(default_factory=SplitterCfg)
     retrieval: RetrievalCfg = Field(default_factory=RetrievalCfg)
     vector_store: VectorStoreCfg = Field(default_factory=VectorStoreCfg)
+    node_store: node_storeCfg = Field(default_factory=node_storeCfg)
+    hf_cache: hf_cacheCfg = Field(default_factory=hf_cacheCfg)
 
     # ---------- 工厂：延迟导入，适配不同版本的 llama-index ----------
     def _import(self, path_variants: list[str]):
@@ -151,22 +188,22 @@ class AppSettings(BaseModel):
 
     # ---- 构建 embedding ----
     def build_embedding(self):
-        embed_v  = self.embedding_model.load_method
+        embed_v  = self.embedding.load_method
         # 默认就是fh默认缓存的路径
         if  embed_v == "hf_cache": 
             EmbCls = self._import([
                 "llama_index.embeddings.huggingface.HuggingFaceEmbedding",
             ])
             return EmbCls(
-                model_name=self.embedding_model.model_name,
-                max_length=self.embedding_model.max_length,
-                normalize=self.embedding_model.normalize,
-                embed_batch_size=self.embedding_model.embed_batch_size,
-                cache_folder=self.embedding_model.cache_folder,
-                trust_remote_code=self.embedding_model.trust_remote_code,
-                model_kwargs={"local_files_only": self.embedding_model.local_files_only},
-                device=self.embedding_model.device,
-                num_workers=self.embedding_model.num_workers,
+                model_name=self.embedding.model_name,
+                max_length=self.embedding.max_length,
+                normalize=self.embedding.normalize,
+                embed_batch_size=self.embedding.embed_batch_size,
+                cache_folder=self.embedding.cache_folder,
+                trust_remote_code=self.embedding.trust_remote_code,
+                model_kwargs={"local_files_only": self.embedding.local_files_only},
+                device=self.embedding.device,
+                num_workers=self.embedding.num_workers,
             )
 
         else:
@@ -174,7 +211,7 @@ class AppSettings(BaseModel):
 
     # ---- 构建 reranker（可选） ----
     def build_reranker(self):
-        if self.reranker_model.provider == "none":
+        if not self.reranker.enabled:
             return None
         if self.reranker_model.provider == "bge_reranker":
             # FlagEmbeddingReranker / BGERerankers 的路径在不同版本可能不同
@@ -217,26 +254,31 @@ class AppSettings(BaseModel):
 
     # ---- 构建 chat LLM ----
     def build_chat_llm(self):
-        chat_v = self.chat_model.load_method
+        chat_v = self.languagelm.load_method
         if chat_v == "hf_cache":
             LLMCls = self._import([
                 "llama_index.llms.huggingface.HuggingFaceLLM",
             ])
             return LLMCls(
-                model_name=self.chat_model.model_name,
-                tokenizer_name=self.chat_model.model_name,
-                context_window=self.chat_model.context_window,
-                max_new_tokens=self.chat_model.max_tokens,
-                system_prompt=self.chat_model.system_prompt,
-                generate_kwargs={"temperature": self.chat_model.temperature, 
-                                 "top_k": self.chat_model.top_k, 
-                                 "top_p": self.chat_model.top_p, 
+                model_name=self.languagelm.model_name,
+                tokenizer_name=self.languagelm.model_name,
+                context_window=self.languagelm.context_window,
+                max_new_tokens=self.languagelm.max_tokens,
+                system_prompt=self.languagelm.system_prompt,
+                generate_kwargs={"temperature": self.languagelm.temperature, 
+                                 "top_k": self.languagelm.top_k, 
+                                 "top_p": self.languagelm.top_p, 
                                  "do_sample": True},
-                device_map=self.chat_model.device,
+                device_map=self.languagelm.device,
             )
         else:
             raise NotImplementedError(f"Unknown chat provider: {chat_v}")
 
+
+
+    # 下面的也不需要   
+    
+    
     # ---- 构建 splitter ----
     def build_text_splitter(self):
         if self.splitter.type == "sentence":
@@ -324,7 +366,7 @@ class AppSettings(BaseModel):
 
 
 # 单例配置对象，可在任意模块导入
-settings_ = AppSettings()
+settings_ = AppSettings()  # 实例化的时候 __init__ 执行完了
 
 
 if __name__ == "__main__":

@@ -2577,22 +2577,135 @@ def get_ingestion_component(
 
 ```
 
-## 
+## 2025-09-04-2114
+今天我们继续拆解private_gpt的ingest部分，在这之前，
+我想先请你介绍一下llama-index中reranker模型的地位，好像并没有很有用的样子，
+我找到了官方的接口
+from llama_index.core.postprocessor import SentenceTransformerRerank
+定义SentenceTransformerRerank类的模块sbert_rerank.py
+也请你介绍一下这个类，要怎么用呢，有什么样的限制，然后这个类适配Qwen3-Reranker-0.6B模型吗？
+好像现在reranker的实现方式并不完全一样呢，请你分析分析
+```python
+from typing import Any, List, Optional
+
+from llama_index.core.bridge.pydantic import Field, PrivateAttr
+from llama_index.core.callbacks import CBEventType, EventPayload
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle
+from llama_index.core.utils import infer_torch_device
+
+DEFAULT_SENTENCE_TRANSFORMER_MAX_LENGTH = 512
 
 
-## 
+class SentenceTransformerRerank(BaseNodePostprocessor):
+    model: str = Field(description="Sentence transformer model name.")
+    top_n: int = Field(description="Number of nodes to return sorted by score.")
+    device: str = Field(
+        default="cpu",
+        description="Device to use for sentence transformer.",
+    )
+    keep_retrieval_score: bool = Field(
+        default=False,
+        description="Whether to keep the retrieval score in metadata.",
+    )
+    trust_remote_code: bool = Field(
+        default=False,
+        description="Whether to trust remote code.",
+    )
+    _model: Any = PrivateAttr()
+
+    def __init__(
+        self,
+        top_n: int = 2,
+        model: str = "cross-encoder/stsb-distilroberta-base",
+        device: Optional[str] = None,
+        keep_retrieval_score: bool = False,
+        trust_remote_code: bool = True,
+    ):
+        try:
+            from sentence_transformers import CrossEncoder  # pants: no-infer-dep
+        except ImportError:
+            raise ImportError(
+                "Cannot import sentence-transformers or torch package,",
+                "please `pip install torch sentence-transformers`",
+            )
+        device = infer_torch_device() if device is None else device
+        super().__init__(
+            top_n=top_n,
+            model=model,
+            device=device,
+            keep_retrieval_score=keep_retrieval_score,
+        )
+        self._model = CrossEncoder(
+            model,
+            max_length=DEFAULT_SENTENCE_TRANSFORMER_MAX_LENGTH,
+            device=device,
+            trust_remote_code=trust_remote_code,
+        )
+
+    @classmethod
+    def class_name(cls) -> str:
+        return "SentenceTransformerRerank"
+
+    def _postprocess_nodes(
+        self,
+        nodes: List[NodeWithScore],
+        query_bundle: Optional[QueryBundle] = None,
+    ) -> List[NodeWithScore]:
+        if query_bundle is None:
+            raise ValueError("Missing query bundle in extra info.")
+        if len(nodes) == 0:
+            return []
+
+        query_and_nodes = [
+            (
+                query_bundle.query_str,
+                node.node.get_content(metadata_mode=MetadataMode.EMBED),
+            )
+            for node in nodes
+        ]
+
+        with self.callback_manager.event(
+            CBEventType.RERANKING,
+            payload={
+                EventPayload.NODES: nodes,
+                EventPayload.MODEL_NAME: self.model,
+                EventPayload.QUERY_STR: query_bundle.query_str,
+                EventPayload.TOP_K: self.top_n,
+            },
+        ) as event:
+            scores = self._model.predict(query_and_nodes)
+
+            assert len(scores) == len(nodes)
+
+            for node, score in zip(nodes, scores):
+                if self.keep_retrieval_score:
+                    # keep the retrieval score in metadata
+                    node.node.metadata["retrieval_score"] = node.score
+                node.score = score
+
+            new_nodes = sorted(nodes, key=lambda x: -x.score if x.score else 0)[
+                : self.top_n
+            ]
+            event.on_end(payload={EventPayload.NODES: new_nodes})
+
+        return new_nodes
+```
 
 
-## 
+## 2025-09-04
 
 
-## 
+## 2025-09-04
 
 
-## 
+## 2025-09-04
 
 
-## 
+## 2025-09-04
+
+
+## 2025-09-04
 
 
 ## 
