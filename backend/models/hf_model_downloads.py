@@ -105,8 +105,8 @@ if __name__ == '__main__':
     
     models_to_download = [
         {
-            # "model_name": "Qwen/Qwen3-Embedding-0.6B",  # Embedding 模型 bge-m3 Qwen/Qwen3-Embedding-0.6B
-            "model_name":"Qwen/Qwen3-Reranker-0.6B"
+            "model_name": "Qwen/Qwen3-Embedding-0.6B",  # Embedding 模型 bge-m3 Qwen/Qwen3-Embedding-0.6B
+            # "model_name":"Qwen/Qwen3-Reranker-0.6B"
         }
     ]
     downloader = HFModelsDownloader_Cache(models_to_download)
