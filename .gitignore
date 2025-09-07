@@ -7,6 +7,9 @@
 *.7z
 *.tar.gz
 
+*raga/lib/*
+*raga/*.html
+
 *chroma_db/
 *chroma_db/*
 
