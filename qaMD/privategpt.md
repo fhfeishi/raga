@@ -1,4 +1,4 @@
-
+# private_gpt 源码学习
 ## 2025-09-01-0000
 private_gpt 的python sdk包源码的结构如下
 
@@ -2746,9 +2746,27 @@ class SentenceTransformerRerank(BaseNodePostprocessor):
 
 ## 
 
+# 专利解析工作流设计
+## 2025-09-07-1018
 
+用一个智能体工作流 结合 强大的LLM 来结构化提取 专利文件pdf（打印版、普通版）的信息
 
-## 
+输入文件：  mineru解析之后的 专利pdf文件.md  
+        - 专利pdf文件.md  存在于一个子文件夹中，附带的还有原始的PDF文件.pdf、images/ 等  
+
+```text
+文件系统：
+~ patent_root/
+    + sub_dir/
+        + *.md          # 解析之后的markdown  （对于打印版pdf的解析不够好）
+        + *_origin.pdf  # 原pdf 
+        + images/       # 抽出来的配图 (不存在遗漏)
+
+-->
+文件戳： 词条解析、需要配置一个 英文-中文对照的prompt、 文件类型， --> 写入原 sub_dir  metadata.json
+正文  ： 打印版的pdf可能几乎全部都是配图，几乎没有文字说明         --> 写入原 sub_dir  textdata.md
+```
+
 
 
 ## 
@@ -2812,8 +2830,7 @@ class SentenceTransformerRerank(BaseNodePostprocessor):
 
 ## 
 
-
-
+# 
 ## 
 
 
@@ -2860,8 +2877,8 @@ class SentenceTransformerRerank(BaseNodePostprocessor):
 
 ## 
 
+# 
 
-
 ## 
 
 
@@ -2905,7 +2922,7 @@ class SentenceTransformerRerank(BaseNodePostprocessor):
 
 ## 
 
-
+# 
 ## 
 
 
@@ -2963,8 +2980,8 @@ class SentenceTransformerRerank(BaseNodePostprocessor):
 ## 
 
 ## 
-
 
+# 
 
 ## 
 
