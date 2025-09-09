@@ -16,7 +16,66 @@
 
 -->
 文件戳： 词条解析、需要配置一个 英文-中文对照的prompt、 文件类型， --> 写入原 sub_dir  metadata.json
-正文  ：                                                      --> 写入原 sub_dir  textdata.md
+正文  ：                                                         --> 写入原 sub_dir  textdata.md
+
+
+
+结构：
+
+Patent Document
+    ├── Level 0: Metadata（结构化字段）
+    │   ├── 专利标识
+    │   ├── 申请信息
+    │   ├── 权利人信息
+    │   ├── 分类信息
+    │   └── 摘要
+    ├── Level 1: Claims（法律语言）
+    │   ├── 独立权利要求
+    │   └── 从属权利要求
+    ├── Level 2: Specification（自然语言）
+    │   ├── 技术领域
+    │   ├── 背景技术
+    │   ├── 发明内容
+    │   ├── 附图说明
+    │   └── 具体实施方式
+    └── Level 3: Visual & Aux（辅助信息）
+        ├── 附图   
+        ├── 附图标记
+        └── 页数信息
+
+-->
+
+Patent Document
+    ├── Level 0: Metadata（结构化字段）   检索
+    │   ├── 专利标识
+    │   ├── 申请信息
+    │   ├── 权利人信息
+    │   ├── 分类信息
+    │   └── 摘要
+    ├── Level 1: Claims（法律语言）   +  
+    │   ├── 独立权利要求
+    │   └── 从属权利要求
+    ├── Level 2: Specification（自然语言）  # 嵌入 + 检索
+    │   ├── 技术领域
+    │   ├── 背景技术
+    │   ├── 发明内容
+    │   ├── 附图说明
+    │   └── 具体实施方式
+    └── Level 3: Visual & Aux（辅助信息） （不嵌入、但是支持调用）
+        └── 附图描述+附图 
+
+
+--> patent_md_normalizer
+
+
+
+
+
+
+
+
+
+
 """
 
 # .todo 
