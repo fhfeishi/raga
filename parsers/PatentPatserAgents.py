@@ -65,15 +65,8 @@ Patent Document
         └── 附图描述+附图 
 
 
---> patent_md_normalizer
-
-
-
-
-
-
-
-
+-->  ims_clean   filter img_link + images_descriptions + filter texts
+-->  patent_md_normalizer  todo
 
 
 """
