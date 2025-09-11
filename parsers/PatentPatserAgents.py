@@ -65,6 +65,13 @@ Patent Document
         └── 附图描述+附图 
 
 
+首页：著录信息     -- 摘要]
+权力要求书：  [ 1.  ...  ]
+（发明专利）说明书
+（实用新型专利）
+
+
+
 -->  ims_clean   filter img_link + images_descriptions + filter texts
 -->  patent_md_normalizer  todo
 
