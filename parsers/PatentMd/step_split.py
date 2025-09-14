@@ -11,6 +11,7 @@ ABSTRACT_HEADER_RE = re.compile(r'^\s*#\s*(?:\(57\))?\s*摘要\s*$', re.MULTILIN
 FIGDESC_HEADER_RE = re.compile(r'^\s*#\s*附图说明\s*$', re.MULTILINE)
 CN_INDEX_TAG_RE = re.compile(r'\[\s*\d{3,}\s*\]')  # [0017] 这类编号
 
+# figs_metadict.json  full_split.md 
 class PatentMdSplit:
     def __init__(self, mdf: str) -> Any:
         self.mdf      : Path = Path(mdf) 
