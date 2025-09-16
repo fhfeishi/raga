@@ -4,20 +4,14 @@
 
 
 # norm figs.json
-import re
-import base64
+import re, base64, json, os, mimetypes
 from pathlib import Path
-from typing import Any, Dict, Optional
-import json 
+from typing import Any, Dict, Optional, List, Tuple 
 from tqdm import tqdm 
 
-import os
-import re
-import json
-import base64
-import mimetypes
-from typing import Any, Dict
-from pathlib import Path
+
+
+
 
 _DIGIT_TRANS = str.maketrans("０１２３４５６７８９", "0123456789")
 
@@ -142,6 +136,84 @@ def figs_norm_pipe(root_dir: Path):
         tgtp = j.with_name("figs.json")
         with open(tgtp, "w", encoding="utf-8") as fo:
             json.dump(repo, fo, ensure_ascii=False, indent=2)
+
+def figs_norm_bcn(
+    root_dir: Path,
+    include_b64: bool = True,
+    include_path: bool = False,
+    safe_read: bool = True,
+    max_b64_mb: float = 5.0,
+    data_uri: bool = False,
+    overwrite: bool = True,
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    """
+    扫描 root_dir 下所有 figs_MetaDict.json，将其规范化为新的 figs.json（旁存）。
+    - include_b64: 是否写入 base64
+    - include_path: 是否写入本地路径
+    - safe_read: 读文件前检查存在性
+    - max_b64_mb: 单图超过该体积则不转 base64（''）
+    - data_uri: base64 是否携带 data: 前缀
+    - overwrite: figs.json 已存在时是否覆盖
+    - dry_run: 只预览不写文件
+    """
+    root_dir = Path(root_dir)
+    jsps: List[Path] = list(root_dir.rglob("figs_MetaDict.json"))
+
+    done, skipped, errors = 0, 0, 0
+    outputs: List[Tuple[Path, Path]] = []
+
+    for j in tqdm(jsps, desc="Normalizing figs_MetaDict.json"):
+        try:
+            with open(j, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+
+            tgtp = j.with_name("figs.json")
+            if tgtp.exists() and not overwrite:
+                skipped += 1
+                continue
+
+            # 规范化
+            repo = build_figs_repo(
+                raw,
+                include_b64=include_b64,
+                include_path=include_path,
+                safe_read=safe_read,
+                max_b64_mb=max_b64_mb,
+                data_uri=data_uri,
+            )
+
+            if not dry_run:
+                with open(tgtp, "w", encoding="utf-8") as fo:
+                    json.dump(repo, fo, ensure_ascii=False, indent=2)
+            outputs.append((j, tgtp))
+            done += 1
+
+        except Exception as e:
+            errors += 1
+            # 可换成日志系统
+            print(f"[ERROR] {j}: {e}")
+
+    return {
+        "found": len(jsps),
+        "done": done,
+        "skipped": skipped,
+        "errors": errors,
+        "outputs": outputs,
+        "options": {
+            "include_b64": include_b64,
+            "include_path": include_path,
+            "safe_read": safe_read,
+            "max_b64_mb": max_b64_mb,
+            "data_uri": data_uri,
+            "overwrite": overwrite,
+            "dry_run": dry_run,
+        },
+    }
+
+
+
+
 
 
 
